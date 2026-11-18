@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MedSeg Studio · 医学影像分割工作台</title>
+<style>
+:root{
+    --bg:#f0f6fb; --panel:#ffffff; --panel2:#f7fbfe; --line:#dfeaf4;
+    --cyan:#0096c7; --blue:#3a7ca8; --txt:#1e3a52; --dim:#6b8299;
+    --green:#2f9e6e; --yellow:#d99a06; --red:#e05252; --mono:'SF Mono',Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:radial-gradient(1000px 500px at 80% -10%,rgba(0,180,216,0.08),transparent 60%),
+    radial-gradient(800px 400px at 0% 0%,rgba(58,124,168,0.06),transparent 55%),var(--bg);
+    color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+    min-height:100vh;font-size:13px}
+/* ---------- 顶栏 ---------- */
+.top{display:flex;align-items:center;gap:18px;padding:14px 24px;flex-wrap:wrap;
+    background:rgba(255,255,255,0.85);backdrop-filter:blur(16px);
+    border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .logo{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+    background:linear-gradient(135deg,#00b4d8,#0096c7);font-size:18px;
+    box-shadow:0 4px 14px rgba(0,150,199,0.25)}
+.brand b{font-size:17px;letter-spacing:0.3px}
+.brand small{display:block;color:var(--dim);font-size:10px;letter-spacing:1px}
+.sample-tabs{display:flex;gap:8px;flex:1;flex-wrap:wrap}
+.sample-tab{padding:8px 14px;border-radius:9px;border:1px solid var(--line);cursor:pointer;
+    background:#fff;color:var(--dim);font-size:12px;font-family:inherit;transition:all .2s}
+.sample-tab:hover{color:var(--cyan);border-color:rgba(0,150,199,0.4)}
+.sample-tab.active{background:linear-gradient(135deg,rgba(0,180,216,0.12),rgba(0,150,199,0.08));
+    color:var(--cyan);border-color:rgba(0,150,199,0.45);font-weight:600}
+.pat-input{background:#fff;border:1px solid var(--line);color:var(--txt);
+    padding:7px 10px;border-radius:8px;width:100px;font-size:12px}
+.report-btn{background:linear-gradient(135deg,#00b4d8,#0096c7);border:none;color:#fff;
+    padding:9px 18px;border-radius:9px;font-weight:700;cursor:pointer;font-size:13px;font-family:inherit;
+    box-shadow:0 4px 12px rgba(0,150,199,0.25)}
+/* ---------- 三栏布局 ---------- */
+.workspace{display:grid;grid-template-columns:264px 1fr 320px;gap:16px;padding:16px 24px;max-width:1680px;margin:0 auto}
+@media(max-width:1200px){.workspace{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:14px}
+.panel{background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;padding:16px;box-shadow:0 3px 16px rgba(30,80,140,0.05)}
+.panel h3{font-size:13px;margin-bottom:12px;display:flex;align-items:center;gap:7px;color:var(--blue)}
+.panel h3::before{content:'';width:3px;height:13px;border-radius:2px;
+    background:linear-gradient(180deg,#00b4d8,#0096c7)}
+.tool-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
+.tool-tab{padding:9px 4px;border-radius:8px;border:1px solid var(--line);background:#fff;
+    color:var(--dim);cursor:pointer;font-size:12px;font-family:inherit;transition:all .15s}
+.tool-tab.active{background:rgba(0,150,199,0.1);color:var(--cyan);border-color:rgba(0,150,199,0.45);font-weight:600}
+.ctl{margin-bottom:12px}
+.ctl label{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-bottom:5px}
+.ctl label b{color:var(--cyan);font-family:var(--mono);font-weight:500}
+input[type=range]{width:100%;height:4px;-webkit-appearance:none;background:#dcebf5;
+    border-radius:4px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:var(--cyan);cursor:pointer;box-shadow:0 0 0 3px rgba(0,150,199,0.15)}
+select{background:#fff;color:var(--txt);border:1px solid var(--line);padding:6px 8px;
+    border-radius:7px;width:100%;font-size:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 12px;
+    border-radius:8px;border:1px solid rgba(0,150,199,0.35);background:rgba(0,150,199,0.06);
+    color:var(--cyan);cursor:pointer;font-size:12px;font-family:inherit;transition:all .15s}
+.btn:hover{background:rgba(0,150,199,0.14)}
+.btn.ghost{border-color:var(--line);background:#fff;color:var(--dim)}
+.btn.ghost:hover{color:var(--cyan);border-color:rgba(0,150,199,0.4)}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.chk{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim);cursor:pointer;margin:6px 0}
+.chk input{accent-color:var(--cyan)}
+.hint{font-size:11px;color:var(--dim);line-height:1.7;margin-top:8px}
+/* ---------- 中央画布 ---------- */
+.stage{background:#fff;border-radius:14px;border:1px solid var(--line);overflow:hidden;
+    box-shadow:0 3px 16px rgba(30,80,140,0.05)}
+#mainCanvas{width:100%;display:block;cursor:crosshair;background:#0a1220}
+.stage-head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;flex-wrap:wrap;gap:8px}
+.stage-head h2{font-size:15px}
+.stage-meta{font-size:11px;color:var(--dim);font-family:var(--mono)}
+.hover-bar{padding:8px 16px;font-family:var(--mono);font-size:11px;color:var(--cyan);
+    border-top:1px solid var(--line);background:rgba(0,150,199,0.04)}
+.finding{font-size:12px;color:var(--dim);line-height:1.8;padding:12px 16px;border-top:1px solid var(--line);background:var(--panel2)}
+/* ---------- 测量 ---------- */
+.m-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.m-item{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.m-item .ml{font-size:11px;color:var(--dim)}
+.m-item .mv{font-size:21px;font-weight:700;font-family:var(--mono);color:var(--cyan);margin-top:3px}
+.m-item .mv small{font-size:12px;color:var(--dim);font-weight:400}
+.m-item .ms{font-size:10px;color:var(--dim);margin-top:2px;font-family:var(--mono)}
+.m-item.wide{grid-column:span 2}
+.m-item.wide .mv{font-size:15px}
+.dim{color:var(--dim);text-align:center;padding:14px 0;font-size:12px}
+.dice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+.dice-item{text-align:center;padding:10px;border-radius:10px;background:rgba(47,158,110,0.06);
+    border:1px solid rgba(47,158,110,0.22)}
+.dice-item .dv{font-size:22px;font-weight:700;font-family:var(--mono);color:var(--green)}
+.dice-item .dl{font-size:11px;color:var(--dim);margin-top:2px}
+#histBox{height:150px}
+table{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)}
+th{color:var(--dim);text-align:left;padding:6px 4px;border-bottom:1px solid var(--line);font-weight:400}
+td{padding:7px 4px;border-bottom:1px solid #eef4fa}
+tbody tr{cursor:pointer;transition:background .15s}
+tbody tr:hover{background:rgba(0,150,199,0.05)}
+tr.sel td{color:var(--yellow);background:rgba(217,154,6,0.06)}
+.fu-result{font-family:var(--mono);font-size:13px;font-weight:700;margin:8px 0}
+.fu-result.ok{color:var(--green)}.fu-result.mid{color:var(--yellow)}.fu-result.bad{color:var(--red)}
+.fu-row{display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono);
+    color:var(--dim);padding:6px 8px;background:var(--panel2);border-radius:6px;margin-bottom:5px}
+.abcd-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
+.abcd-grid .av{font-family:var(--mono);font-size:16px;color:var(--yellow);font-weight:700}
+.abcd-grid .al{font-size:10px;color:var(--dim);margin-top:3px}
+/* ---------- 方法笔记 ---------- */
+.notes{max-width:1680px;margin:0 auto;padding:0 24px 30px}
+details{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:10px;
+    box-shadow:0 2px 10px rgba(30,80,140,0.04)}
+summary{cursor:pointer;color:var(--blue);font-size:13px;font-weight:600}
+details p{color:var(--dim);font-size:12px;line-height:1.9;margin-top:10px}
+#toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(16px);
+    background:rgba(255,255,255,0.97);border:1px solid rgba(0,150,199,0.4);color:var(--cyan);
+    padding:11px 22px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;
+    transition:all .25s;z-index:99;box-shadow:0 6px 24px rgba(30,80,140,0.12)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.home-link{color:var(--dim);text-decoration:none;font-size:12px}
+.home-link:hover{color:var(--cyan)}
+.upload-tab{border-style:dashed;border-color:rgba(0,150,199,0.5);color:var(--cyan);
+    font-weight:600;cursor:pointer;background:rgba(0,150,199,0.05)}
+.upload-tab:hover{background:rgba(0,150,199,0.12)}
+.sub-hr{font-size:12px;font-weight:600;color:var(--blue);margin:16px 0 10px;
+    padding-top:12px;border-top:1px dashed var(--line)}
+</style>
+</head>
+<body>
+
+<header class="top">
+    <div class="brand">
+        <div class="logo">🧠</div>
+        <div><b>MedSeg Studio</b><small>医学影像分割工作台</small></div>
+    </div>
+    <div class="sample-tabs">
+        <label class="sample-tab upload-tab">＋ 导入影像
+            <input type="file" accept="image/*" style="display:none" onchange="handleUpload(this)"></label>
+        <button class="sample-tab active" data-id="mri" onclick="loadSample('mri')">🧠 脑部 MRI</button>
+        <button class="sample-tab" data-id="ct" onclick="loadSample('ct')">🫁 胸部 CT</button>
+        <button class="sample-tab" data-id="derm" onclick="loadSample('derm')">🔬 皮肤镜</button>
+    </div>
+    <input class="pat-input" id="patName" placeholder="患者姓名">
+    <input class="pat-input" id="patId" placeholder="病历号">
+    <button class="report-btn" onclick="exportReport()">📄 导出报告</button>
+    <a class="home-link" href="index.html">仪表盘 →</a>
+</header>
+
+<div class="workspace">
+    <!-- ========== 左栏：工具 ========== -->
+    <div class="col">
+        <div class="panel">
+            <h3>分割方式</h3>
+            <div class="tool-tabs">
+                <button class="tool-tab active" data-tool="seed" onclick="setTool('seed')">🌱 区域生长</button>
+                <button class="tool-tab" data-tool="brush" onclick="setTool('brush')">🖌 画笔增补</button>
+                <button class="tool-tab" data-tool="erase" onclick="setTool('erase')">⌫ 橡皮擦除</button>
+            </div>
+            <div class="ctl"><label>同质生长容差 (±ΔI)<b id="tolVal">42</b></label>
+                <input type="range" id="tolRange" min="5" max="100" value="42"></div>
+            <label class="chk"><input type="checkbox" id="adaptiveGrow" checked>自适应生长（邻域统计+区域均值）</label>
+            <label class="chk"><input type="checkbox" id="smoothPre" onchange="smoothCache=null">预处理高斯平滑（抗噪）</label>
+            <div class="ctl"><label>画笔半径 (px)<b id="brushVal">10</b></label>
+                <input type="range" id="brushRange" min="2" max="40" value="10"></div>
+            <div class="ctl"><label>目标信号极性</label>
+                <select id="polarity" onchange="S.polarity=this.value">
+                    <option value="bright">高密度 / 高信号（亮）</option>
+                    <option value="dark">低密度 / 色素沉着（暗）</option>
+                </select></div>
+            <div class="ctl"><label>空间标定 (mm/px)</label>
+                <input type="number" id="mmPerPx" step="0.01" value="0.45" class="pat-input" style="width:100%"
+                    onchange="S.mmPerPx=+this.value;measure()"></div>
+            <p class="hint">🌱 种子模式：轻点影像中的病灶，沿相近灰度自动生长轮廓。</p>
+            <div class="btn-row">
+                <button class="btn ghost" onclick="undo()">↩ 撤销</button>
+                <button class="btn ghost" onclick="clearMask()">🗑 清空掩膜</button>
+            </div>
+            <div class="btn-row">
+                <button class="btn ghost" onclick="pushUndo();mask=morphClose(mask);afterSeg('闭运算')">闭运算</button>
+                <button class="btn ghost" onclick="pushUndo();mask=fillHoles(mask);afterSeg('孔洞填充')">孔洞填充</button>
+                <button class="btn ghost" onclick="pushUndo();mask=majorityFilter(majorityFilter(mask));afterSeg('边缘平滑')">边缘平滑</button>
+                <button class="btn ghost" onclick="pushUndo();mask=removeSmall(mask);afterSeg('去碎斑')">去碎斑</button>
+            </div>
+            <div class="sub-hr">Otsu 阈值分割</div>
+            <div class="ctl"><label>灰度阈值 T<b id="otsuVal">175</b></label>
+                <input type="range" id="otsuRange" min="0" max="255" value="175"></div>
+            <label class="chk"><input type="checkbox" id="largestOnly" checked>仅保留最大连通病灶（去伪影）</label>
+            <div class="btn-row">
+                <button class="btn" onclick="otsuSegment()">按阈值分割</button>
+                <button class="btn" onclick="autoOtsu()">✨ 自动最优阈值</button>
+            </div>
+
+            <div class="sub-hr">CAD 全图病灶筛查</div>
+            <div class="ctl"><label>检测灵敏度偏移<b id="cadOffsetVal">0</b></label>
+                <input type="range" id="cadOffsetRange" min="-40" max="40" value="0"></div>
+            <div class="ctl"><label>最小病灶面积 (px)<b id="minAreaVal">80</b></label>
+                <input type="range" id="minAreaRange" min="20" max="500" value="80"></div>
+            <button class="btn" style="width:100%" onclick="runCAD()">🔍 执行自动筛查</button>
+        </div>
+
+        <div class="panel">
+            <h3>显示与图层</h3>
+            <div class="ctl"><label>窗宽 WW<b id="wwVal">255</b></label>
+                <input type="range" id="wwRange" min="1" max="255" value="255"></div>
+            <div class="ctl"><label>窗位 WL<b id="wlVal">128</b></label>
+                <input type="range" id="wlRange" min="0" max="255" value="128"></div>
+            <div class="btn-row">
+                <button class="btn ghost" onclick="presetWindow(255,128)">标准窗</button>
+                <button class="btn ghost" onclick="presetWindow(80,180)">病灶窗</button>
+                <button class="btn ghost" onclick="presetWindow(150,110)">柔和窗</button>
+            </div>
+
+            <div class="sub-hr">视觉图层与卷帘</div>
+            <div class="ctl"><label>掩膜不透明度<b id="opacityVal">45</b>%</label>
+                <input type="range" id="opacityRange" min="0" max="100" value="45"></div>
+            <label class="chk"><input type="checkbox" checked onchange="toggleLayer('mask',this)">分割掩膜渲染</label>
+            <label class="chk"><input type="checkbox" checked onchange="toggleLayer('contour',this)">病灶边缘轮廓（红）</label>
+            <label class="chk"><input type="checkbox" checked onchange="toggleLayer('recist',this)">RECIST 最大长径线（黄）</label>
+            <label class="chk"><input type="checkbox" onchange="toggleLayer('gold',this)">金标准参考轮廓（绿）</label>
+            <label class="chk"><input type="checkbox" onchange="splitPct=this.checked?50:-1;render()">左右卷帘对比</label>
+            <div class="ctl"><label>卷帘位置<b>50</b>%</label>
+                <input type="range" id="splitRange" min="0" max="100" value="50"></div>
+        </div>
+    </div>
+
+    <!-- ========== 中栏：影像 ========== -->
+    <div class="col">
+        <div class="stage">
+            <div class="stage-head">
+                <h2 id="sampleTitle">脑部增强 MRI</h2>
+                <span class="stage-meta" id="sampleMeta"></span>
+            </div>
+            <canvas id="mainCanvas"></canvas>
+            <div class="hover-bar"><span id="hoverInfo">坐标 (--, --) | 灰度 -- | 种子模式</span>
+                <span style="float:right;color:var(--dim)" id="segStatus">待命</span></div>
+            <div class="finding">📋 <span id="sampleFinding"></span></div>
+        </div>
+        <div class="panel">
+            <div class="btn-row" style="margin-top:0">
+                <button class="btn" onclick="downloadImage('overlay')">⬇ 叠加图</button>
+                <button class="btn" onclick="downloadImage('mask')">⬇ 二值掩膜</button>
+                <button class="btn" onclick="exportReport()">📄 结构化报告</button>
+            </div>
+        </div>
+        <div class="panel">
+            <h3>组织与病灶灰度分布（32 bins）</h3>
+            <div id="histBox"></div>
+            <p class="hint">浅蓝 = 全图灰度分布；亮青 = 当前掩膜内病灶像素的灰度分布。</p>
+        </div>
+    </div>
+
+    <!-- ========== 右栏：测量 ========== -->
+    <div class="col">
+        <div class="panel">
+            <h3>病灶形态学定量测量</h3>
+            <div class="dim" id="mEmpty">🌱 轻点影像设置种子，或用画笔补上第一个区域</div>
+            <div class="m-grid" id="mGrid" style="display:none">
+                <div class="m-item"><div class="ml">病灶面积 Area</div>
+                    <div class="mv"><span id="mArea">--</span> <small>mm²</small></div>
+                    <div class="ms" id="mAreaPx"></div></div>
+                <div class="m-item"><div class="ml">最大长径 RECIST</div>
+                    <div class="mv"><span id="mDiam">--</span> <small>mm</small></div>
+                    <div class="ms" id="mEq"></div></div>
+                <div class="m-item"><div class="ml">边界周长</div>
+                    <div class="mv"><span id="mPeri">--</span> <small>mm</small></div>
+                    <div class="ms" id="mCirc"></div></div>
+                <div class="m-item"><div class="ml">病灶灰度均值</div>
+                    <div class="mv" style="font-size:16px" id="mGray">--</div>
+                    <div class="ms">病灶/周围对比度 ΔI: <span id="mContrast">--</span></div></div>
+                <div class="m-item wide"><div class="ml">质心与包围盒 (px)</div>
+                    <div class="mv" id="mCenter">--</div></div>
+            </div>
+            <div id="dicePanel" style="display:none">
+                <div class="sub-hr">金标准重叠度验证</div>
+                <div class="dice-grid">
+                    <div class="dice-item"><div class="dv" id="diceVal">--</div><div class="dl">Dice 相似系数 DSC</div></div>
+                    <div class="dice-item"><div class="dv" id="iouVal">--</div><div class="dl">IoU 交并比</div></div>
+                    <div class="dice-item"><div class="dv" id="recallVal">--</div><div class="dl">敏感度 Recall</div></div>
+                    <div class="dice-item"><div class="dv" id="precVal">--</div><div class="dl">精确率 Precision</div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel" id="abcdPanel" style="display:none">
+            <h3>ABCD 皮肤病灶分析（新增）</h3>
+            <div class="abcd-grid">
+                <div><div class="av" id="abcdA">--</div><div class="al">A 不对称</div></div>
+                <div><div class="av" id="abcdB">--</div><div class="al">B 边缘紧凑度</div></div>
+                <div><div class="av" id="abcdC">--</div><div class="al">C 颜色种类</div></div>
+                <div><div class="av" id="abcdD">--</div><div class="al">D 长径</div></div>
+            </div>
+            <p class="hint">不对称 &gt;20%、紧凑度 &gt;1.6、颜色 ≥3 种提示需皮肤镜进一步检查。</p>
+        </div>
+
+        <div class="panel">
+            <h3>CAD 候选病灶筛查序列</h3>
+            <table><thead><tr><th>编号</th><th>中心坐标</th><th>面积mm²</th><th>长径mm</th><th>置信度</th></tr></thead>
+            <tbody id="cadBody"><tr><td colspan="5" class="dim">暂无候选 · 请在左侧执行筛查</td></tr></tbody></table>
+            <p class="hint">点击行可切换选中病灶并定位高亮。</p>
+        </div>
+
+        <div class="panel">
+            <h3>RECIST 1.1 随访疗效评估（新增）</h3>
+            <div class="dim" id="fuEmpty">暂无随访记录 · 分割后点击下方记录</div>
+            <div class="fu-result" id="fuResult">--</div>
+            <div id="fuList"></div>
+            <div class="btn-row">
+                <button class="btn" onclick="saveFollowup()">＋ 记录本次测量</button>
+                <button class="btn ghost" onclick="clearFollowups()">清空随访</button>
+            </div>
+            <p class="hint">以首次记录为基线：长径缩小≥30% → PR 部分缓解；增大≥20% → PD 进展；其间为 SD 稳定（RECIST 1.1）。</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== 方法笔记 ========== -->
+<div class="notes">
+    <details><summary>📖 CHAPTER 01 · 窗宽与窗位：在动态范围中唤醒微观对比度</summary>
+        <p>临床 CT 衰减值横跨空气（约 -1000 HU）至骨皮质（+1000 HU），远超人眼灰阶分辨极限。收窄窗宽可放大软组织病灶边缘梯度；调整窗位可将显示灰阶聚焦于特定密度区间。本工作台对灰阶影像实时执行 v' = clamp((v-(WL-WW/2))/WW×255) 线性映射。</p></details>
+    <details><summary>📖 CHAPTER 02 · 经典分割算子：全局类间方差 vs 局部同质性区域生长</summary>
+        <p>Otsu（1979）最大类间方差法无需先验即可从直方图锁定最优全局阈值，适合前景背景双峰分布的皮肤镜图像。而在 MRI/CT 中，颅骨与肋骨常与靶病灶亮度相近，种子区域生长沿解剖连通邻域扩张，可精准剥离远端高亮伪影。配合形态学闭运算与孔洞填充可进一步精修掩膜拓扑。</p></details>
+    <details><summary>📖 CHAPTER 03 · RECIST 1.1 与空间重叠度验证</summary>
+        <p>RECIST 1.1 以单维最大长径量化靶病灶负荷：长径较基线缩小≥30% 为部分缓解（PR），增大≥20% 为疾病进展（PD）。算法评测普遍采用 Dice 与 IoU 衡量预测掩膜与专家轮廓一致性，二者满足 DSC = 2·IoU/(1+IoU)。本工作台的凸包最大点对距离实现长径测量，金标准来自合成样本的精确病灶掩膜。</p></details>
+    <details><summary>📖 声明</summary>
+        <p>本工作台所有影像均为程序合成的教学样本，用于《智慧医学导论》课程演示。全部分割、测量、验证算法在浏览器本地真实执行，不构成临床诊断依据。</p></details>
+</div>
+
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="samples.js"></script>
+<script src="medseg.js"></script>
+</body>
+</html>
